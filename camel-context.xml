@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+ 
+    http://www.apache.org/licenses/LICENSE-2.0
+ 
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:camel="http://camel.apache.org/schema/spring"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+  <!-- START SNIPPET: List of listeners definitions -->
+  <bean id="backOutMDB" class="cos.listeners.IDBackOutQueueListener"></bean>
+  <bean id="FDMDB" class="cos.listeners.IDFinalDecisionListener"></bean>
+  <bean id="fulfilMDB" class="cos.listeners.IDFulFillmentListener"></bean>
+  <bean id="imageMDB" class="cos.listeners.ImageManagerListener"></bean>
+  <bean id="ivrMDB" class="cos.listeners.IVRSessionListener"></bean>
+  <bean id="mdisMDB" class="cos.listeners.MDISResponseListener"></bean>
+  <bean id="offlineMDB" class="cos.listeners.OfflineBureauListener"></bean>
+  <bean id="onlineMDB" class="cos.listeners.OnlineApplicationListener"></bean>
+  <bean id="paymentMDB" class="cos.listeners.PaymentSessionListener"></bean>
+  <bean id="STSMDB" class="cos.listeners.STSResponseListener"></bean>
+  <bean id="uploadMDB" class="cos.listeners.UploadListener"></bean>
+  
+   <bean
+     class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="locations">
+            <list>
+                <value>/shared/cos/config/product/queue.properties</value>
+            </list>
+        </property>
+        <property name="ignoreResourceNotFound" value="true"/>
+    </bean>
+  
+ 
+	<bean id="mqCFBean" class="com.ibm.mq.jms.MQXAConnectionFactory">
+	   <property name="hostName" value="${queue.hostName}"/>
+	   <property name="port" value="${queue.port}"/>
+	   <property name="queueManager" value="HKCOS1S1"/>
+	   <property name="channel" value="SYSTEM.DEF.SVRCONN"/>
+	   <property name="transportType" value="1"/> <!-- This parameter is fixed and compulsory to work with pure MQI java libraries -->
+	</bean>
+	
+	<bean id="myConnectionFactory" class="org.springframework.jms.connection.UserCredentialsConnectionFactoryAdapter">
+	   <property name="targetConnectionFactory" ref="mqCFBean"/>
+	   <property name="username" value="${queue.username}"/>
+	   <!-- <property name="password" value="scope2015"/> -->
+	 </bean>
+
+	 <bean id="jms" class="org.apache.camel.component.jms.JmsComponent">
+	    <property name="connectionFactory" ref="myConnectionFactory"/>
+	    <property name="transacted" value="true"/>
+	    <property name="acknowledgementModeName" value="AUTO_ACKNOWLEDGE"/>
+	</bean>  
+  
+	<camelContext id="backOutMDB_route" xmlns="http://camel.apache.org/schema/spring">
+	  <route>
+	    <from uri="jms:queue:COS.ISIS.COSID.BOQ?mapJmsMessage=false"/>
+	    <to uri="bean:backOutMDB?method=onMessage"/>
+	  </route>
+	</camelContext>
+  
+   <camelContext id="FDMDB_route" xmlns="http://camel.apache.org/schema/spring">
+    <route>
+      <from uri="jms:queue:COS.FINALDECISION_IDONSHORE?mapJmsMessage=false"/>
+      <to uri="bean:FDMDB?method=onMessage"/>
+    </route>
+  </camelContext>
+  
+   <camelContext id="fulfilMDB_route" xmlns="http://camel.apache.org/schema/spring">
+    <route>
+      <from uri="jms:queue:COSHK.FULLFILL.RQST_IDONSHORE?mapJmsMessage=false"/>
+      <to uri="bean:fulfilMDB?method=onMessage"/>
+    </route>
+  </camelContext>
+  
+  <camelContext id="imageMDB_route" xmlns="http://camel.apache.org/schema/spring">
+    <route>
+      <from uri="jms:queue:COS.FNTID.COSID.RQSTIN?mapJmsMessage=false"/>
+      <to uri="bean:imageMDB?method=onMessage"/>
+    </route>
+  </camelContext>
+  
+   <camelContext id="ivrMDB_route" xmlns="http://camel.apache.org/schema/spring">
+    <route>
+      <from uri="jms:queue:COS.IVRHK.COSHK.RQSTIN?mapJmsMessage=false"/>
+      <to uri="bean:ivrMDB?method=onMessage"/>
+    </route>
+  </camelContext>
+  
+  <camelContext id="mdisMDB_route" xmlns="http://camel.apache.org/schema/spring">
+    <route>
+      <from uri="jms:queue:COS.COSHK.MDISHK.RQST_IDPSSDEV?mapJmsMessage=false"/>
+      <to uri="bean:mdisMDB?method=onMessage"/>
+    </route>
+  </camelContext>
+  
+	<camelContext id="offlineMDB_route" xmlns="http://camel.apache.org/schema/spring"> 
+	    <route> 
+	     <!-- This queue is for production  <from uri="jms:queue:COS.CIMHK.COSHK.CBTU.RESPIN"/> --> 
+	     <from uri="jms:queue:COS.LOCAL.CIMSTU.IDONSHORE?mapJmsMessage=false"/> 
+	      <to uri="bean:offlineMDB?method=onMessage"/> 
+	    </route> 
+  </camelContext> 
+
+   
+   <camelContext id="paymentMDB_route" xmlns="http://camel.apache.org/schema/spring">
+	    <route>
+	      <from uri="jms:queue:COS.ISIS_ODS.COSHK.RESPIN?mapJmsMessage=false"/>
+	      <to uri="bean:paymentMDB?method=onMessage"/>
+	    </route>
+  </camelContext>
+  
+  <camelContext id="STSMDB_route" xmlns="http://camel.apache.org/schema/spring">
+    <route>
+      <from uri="jms:queue:COS.STSID.COSID.RESPIN?mapJmsMessage=false"/>
+      <to uri="bean:STSMDB?method=onMessage"/>
+    </route>
+  </camelContext>
+  
+   
+  <camelContext id="uploadMDB_route" xmlns="http://camel.apache.org/schema/spring">
+    <route>
+      <from uri="jms:queue:COS.VENDORMAILIN_IDONSHORE?mapJmsMessage=false"/>
+      <to uri="bean:uploadMDB?method=onMessage"/>
+    </route>
+  </camelContext>
+ 
+	<bean id="jndiTemplate" class="org.springframework.jndi.JndiTemplate">
+        <property name="environment">
+            <props>
+                <prop key="java.naming.factory.initial">com.webmethods.jms.naming.WmJmsNamingCtxFactory</prop>
+                <prop key="java.naming.provider.url">wmjmsnaming://EDMI951SIT_JNDI01@10.20.175.65:6712/EDMIFramework</prop>
+           </props>
+        </property>
+    </bean>
+   
+  	<bean id="wmConnectionFactory"  class="org.springframework.jndi.JndiObjectFactoryBean" init-method="afterPropertiesSet">
+        <property name="jndiTemplate" ref="jndiTemplate" />
+        <property name="jndiName" value="scbOrgProsMgmtCOSCFP" />
+        <property name="lookupOnStartup" value="true" />
+        <property name="cache" value="true" />
+    </bean>
+  
+  	<bean id="jmsConnectionFactory" class="org.springframework.jms.connection.DelegatingConnectionFactory">
+		<property name="targetConnectionFactory" ref="wmConnectionFactory"/>
+   </bean>
+  
+  
+  <!--<bean id="jmsConnectionFactory" class="org.springframework.jms.connection.SingleConnectionFactory"  factory-method="getObject" factory-bean="wmConnectionFactory">
+  
+      </bean>
+  
+     <bean id="webmethodsObjectFactory" class="com.webmethods.jms.impl.ObjectFactory"/> 
+    
+     <bean id="naming" class="javax.naming.CompositeName"> 
+        <constructor-arg value="naming"></constructor-arg>
+    </bean>
+    <bean id="iniCont" class="javax.naming.InitialContext"/> 
+    <bean id="props" class="java.util.Properties"/>
+    <bean id="jmsWMConnectionFactory" factory-bean="webmethodsObjectFactory" factory-method="getObjectInstance">
+       <constructor-arg type="java.lang.Object" ref="jmsConnectionFactory"></constructor-arg>
+       <constructor-arg type="javax.naming.Name" ref="naming"></constructor-arg>
+        <constructor-arg type="javax.naming.Context" ref="iniCont"></constructor-arg>
+        <constructor-arg type="java.util.Hashtable" ref="props"></constructor-arg>
+    </bean> -->
+    
+    <bean id="wmAuthConnectionFactory" class="org.springframework.jms.connection.UserCredentialsConnectionFactoryAdapter">
+        <property name="targetConnectionFactory" ref="jmsConnectionFactory"/>
+        <property name="username" value="edmicbta_user"/>
+        <property name="password" value="abc12345"/>
+    </bean>
+    
+    <bean id="webmethod" class="org.apache.camel.component.jms.JmsComponent">
+        <property name="configuration">
+            <bean class="org.apache.camel.component.jms.JmsConfiguration">
+                <property name="connectionFactory" ref="wmAuthConnectionFactory"/>
+                <property name="concurrentConsumers" value="1"/>
+               <!--  <property name="ClientIDSharing" value="true"/>
+                <property name="sharedStateOrdering" value="none"></property> -->
+                <!-- <property name="clientId" value="scbOrgProsMgmtCOSCFP"/>-->
+                 <property name="durableSubscriptionName" value="scbOrgProsMgmtCOSCFP##COS_PREPROD#OnlineApplicationMDB.jar#scbOrgIndvProsMgmtCaptureProspectCOSV2ReqTTs_COS_DS"/> 
+            </bean>
+        </property>
+    </bean> 
+    
+     <!-- Currently RCWB is not live in ID country and it is not possible to use same topic which is used in HK country. hence
+     	we need to create new topic for RCWB ID country.-->
+     <!-- 
+     <camelContext trace="false" id="gemsContext" xmlns="http://camel.apache.org/schema/spring">
+        <redeliveryPolicyProfile maximumRedeliveries="1" redeliveryDelay="5000" retryAttemptedLogLevel="WARN"   id="redelivPolicy" />
+        <redeliveryPolicyProfile maximumRedeliveries="1" redeliveryDelay="5000" id="redelivPolicy"/>
+        <onException redeliveryPolicyRef="redelivPolicy" useOriginalMessage="true">
+            <exception>java.lang.Exception</exception>
+            <process ref="gemsResponseProcessor" />
+        </onException>
+        <onCompletion onCompleteOnly ="true">
+            <process ref="gemsResponseProcessor" />
+        </onCompletion>
+        <route>
+            <from uri="webmethod:topic:scbOrgIndvProsMgmtCaptureProspectCOSV2ReqTTs"/>
+            <to uri="bean:onlineMDB?method=onMessage"/>
+        </route>
+    </camelContext> 
+    -->
+    
+  
+</beans>
