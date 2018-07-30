@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans  
+  xmlns='http://www.springframework.org/schema/beans'  
+  xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'  
+  xmlns:beans='http://www.springframework.org/schema/beans'  
+  xmlns:jaxws='http://cxf.apache.org/jaxws'  
+  xsi:schemaLocation='http://www.springframework.org/schema/beans  
+  http://www.springframework.org/schema/beans/spring-beans.xsd  
+  http://cxf.apache.org/jaxws  
+  http://cxf.apache.org/schemas/jaxws.xsd'>  
+  
+  <bean id="logInbound" class="org.apache.cxf.interceptor.LoggingInInterceptor">
+  <property name="limit" value="-1"></property>
+  </bean>
+        <bean id="logOutbound" class="org.apache.cxf.interceptor.LoggingOutInterceptor">
+        <property name="limit" value="-1"></property>
+        </bean>
+
+        <bean id="cxf" class="org.apache.cxf.bus.spring.SpringBus">
+            <property name="inInterceptors">
+                <list>
+                    <ref bean="logInbound"/>
+                </list>
+            </property>
+            <property name="outInterceptors">
+                <list>
+                    <ref bean="logOutbound"/>
+                </list>
+            </property>
+            <property name="outFaultInterceptors">
+                <list>
+                    <ref bean="logOutbound"/>
+                </list>
+            </property>
+            <property name="inFaultInterceptors">
+                <list>
+                    <ref bean="logInbound"/>
+                </list>
+            </property>
+        </bean>
+    
+</beans>  
